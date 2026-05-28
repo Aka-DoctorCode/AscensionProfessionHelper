@@ -1,6 +1,6 @@
 ## Interface: 120005
 ## Title: Ascension Profession Helper
-## Notes: Advanced gathering and crafting systems for Ascension.
+## Notes: Streamlines mass Disenchanting, Milling, and Prospecting with a safe queue and keybind support.
 ## Author: Aka-DoctorCode
 ## Version: V01
 ## SavedVariables: AscensionDB
