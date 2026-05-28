@@ -2,7 +2,12 @@
 ## Title: Ascension Profession Helper
 ## Notes: Streamlines mass Disenchanting, Milling, and Prospecting with a safe queue and keybind support.
 ## Author: Aka-DoctorCode
-## Version: V01
+## Category: Professions
+## Version: @project-version@
 ## SavedVariables: AscensionDB
-## Dependencies: AscensionSuit
+## RequiredDeps: AscensionSuit
+## IconTexture: Interface\AddOns\AscensionProfessionHelper\Media\AkaDoctorCode.png
+## X-Curse-Project-ID: 1556632
+## X-Wago-ID: BNBmgLGx
+
 AscensionProfessionHelper.lua

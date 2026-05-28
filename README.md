@@ -11,7 +11,10 @@
 * **Blacklist:** Easily ignore specific items so they are never accidentally destroyed.
 * **Modern UI:** Built on top of the AscensionSuit UI framework for a sleek and consistent look.
 
-### **Menu:** go into the add-ons in game menu
+### **How to Use & Open Frame**
+
+* Type `/aph` in chat to open main frame.
+* Go to game Options -> AddOns -> Ascension Profession Helper for settings.
 
 ***
 
@@ -24,6 +27,9 @@
 * **Lista Negra:** ignora fácilmente objetos específicos para que nunca se destruyan accidentalmente.
 * **Interfaz Moderna:** construido sobre el framework AscensionSuit UI para un aspecto elegante y consistente.
 
-### Menú: Ve a la sección de add-ons del menú del juego
+### **Cómo usar y abrir la interfaz**
+
+* Escribe `/aph` en el chat para abrir la ventana principal.
+* Ve a Opciones -> AddOns -> Ascension Profession Helper en el menú del juego.
 
 ***
