@@ -20,12 +20,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      # - name: packageAndDeploy
-      #   uses: BigWigsMods/packager@v2
-      #   env:
-      #     CF_API_KEY: ${{ secrets.CF_API_KEY }}
-      #     WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
-      #     GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+      - name: packageAndDeploy
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
 
       - name: triggerAscensionSuitUpdate
         env:
