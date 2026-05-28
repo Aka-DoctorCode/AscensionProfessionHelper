@@ -1,0 +1,8 @@
+## Interface: 120005
+## Title: Ascension Profession Helper
+## Notes: Advanced gathering and crafting systems for Ascension.
+## Author: Aka-DoctorCode
+## Version: V01
+## SavedVariables: AscensionDB
+## Dependencies: AscensionSuit
+AscensionProfessionHelper.lua

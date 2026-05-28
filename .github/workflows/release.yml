@@ -1,0 +1,38 @@
+name: Package and Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkoutCode
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: packageAndDeploy
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: triggerAscensionSuitUpdate
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          gh api repos/Aka-DoctorCode/AscensionSuit/dispatches \
+            --method POST \
+            -f event_type="update-suite" \
+            -F client_payload[trigger]="AscensionProfessionHelper" \
+            -F client_payload[version]="${{ github.ref_name }}"
