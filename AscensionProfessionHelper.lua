@@ -6,7 +6,7 @@
 ---@diagnostic disable: undefined-global, undefined-field, inject-field
 
 local addonName, Ascension = ...
-Ascension.crafting = { queue = {}, currentTargetItem = nil }
+Ascension.crafting = { queue = {}, currentTargetItem = nil, sessionConfirmed = false, allowedDangerousItems = {} }
 Ascension.inventory = {}
 Ascension.isDebugEnabled = false
 
@@ -24,6 +24,30 @@ massDestroyButton:RegisterForClicks("AnyUp", "AnyDown")
 massDestroyButton:SetSize(150, 40)
 massDestroyButton:SetAttribute("*type1", "macro")
 massDestroyButton:Hide()
+
+local destroyOverlayBtn = CreateFrame("Button", "AscensionMassDestroyOverlayBtn", UIParent, "BackdropTemplate")
+destroyOverlayBtn:SetSize(150, 40)
+destroyOverlayBtn:Hide()
+destroyOverlayBtn:SetScript("OnClick", function()
+    if not Ascension.crafting.currentTargetItem then return end
+    StaticPopupDialogs["ASCENSION_CONFIRM_DESTROY"] = {
+        text = "Are you sure you want to start destroying items?",
+        button1 = "Yes",
+        button2 = "No",
+        OnAccept = function()
+            Ascension.crafting.sessionConfirmed = true
+            if AscensionDB.lastBind and _G.AscensionProfHelperUI then
+                SetOverrideBindingClick(_G.AscensionProfHelperUI, true, AscensionDB.lastBind, "AscensionMassDestroyBtn", "LeftButton")
+            end
+            destroyOverlayBtn:Hide()
+            Ascension.crafting.updateDestroyQueue()
+        end,
+        timeout = 0,
+        whileDead = true,
+        hideOnEscape = true,
+    }
+    StaticPopup_Show("ASCENSION_CONFIRM_DESTROY")
+end)
 
 local categoryPanels = {}
 local itemFrames = {}
@@ -109,14 +133,27 @@ function Ascension.crafting.isItemDestroyable(itemId)
         return false, nil
     end
 
+    local isNotDisenchantable = false
     local tooltipData = C_TooltipInfo.GetItemByID(itemId)
     if tooltipData then
         for _, line in ipairs(tooltipData.lines) do
-            if line.leftText == "Prospectable" then return true, "Prospecting" end
-            if line.leftText == "Millable" then return true, "Milling" end
+            local text = line.leftText or ""
+            local lowerText = string.lower(text)
+            
+            if string.find(lowerText, "prospectable") or string.find(lowerText, "se puede prospectar") or (ITEM_PROSPECTABLE and string.find(text, ITEM_PROSPECTABLE)) then return true, "Prospecting" end
+            if string.find(lowerText, "millable") or string.find(lowerText, "molible") or string.find(lowerText, "se puede moler") or (ITEM_MILLABLE and string.find(text, ITEM_MILLABLE)) then return true, "Milling" end
+            
+            if string.find(lowerText, "cannot be disenchanted") or string.find(lowerText, "not disenchantable") or string.find(lowerText, "no se puede desencantar") or string.find(lowerText, "no desencantable") then
+                isNotDisenchantable = true
+            end
+            if ITEM_DISENCHANT_NOT_DISENCHANTABLE and string.find(text, ITEM_DISENCHANT_NOT_DISENCHANTABLE) then
+                isNotDisenchantable = true
+            end
         end
     end
     
+    if isNotDisenchantable then return false, nil end
+
     local itemQuality = select(3, C_Item.GetItemInfo(itemId))
     local classId = select(12, C_Item.GetItemInfo(itemId))
     if (classId == 2 or classId == 4) and itemQuality and itemQuality >= 2 and itemQuality <= 4 then
@@ -126,9 +163,63 @@ function Ascension.crafting.isItemDestroyable(itemId)
     return false, nil
 end
 
+function Ascension.crafting.isItemDangerous(link, itemId)
+    local itemEquipLoc = select(9, C_Item.GetItemInfo(link))
+    if not itemEquipLoc or itemEquipLoc == "" then return false end
+    
+    local inventorySlotId = nil
+    if itemEquipLoc == "INVTYPE_HEAD" then inventorySlotId = 1
+    elseif itemEquipLoc == "INVTYPE_NECK" then inventorySlotId = 2
+    elseif itemEquipLoc == "INVTYPE_SHOULDER" then inventorySlotId = 3
+    elseif itemEquipLoc == "INVTYPE_CHEST" or itemEquipLoc == "INVTYPE_ROBE" then inventorySlotId = 5
+    elseif itemEquipLoc == "INVTYPE_WAIST" then inventorySlotId = 6
+    elseif itemEquipLoc == "INVTYPE_LEGS" then inventorySlotId = 7
+    elseif itemEquipLoc == "INVTYPE_FEET" then inventorySlotId = 8
+    elseif itemEquipLoc == "INVTYPE_WRIST" then inventorySlotId = 9
+    elseif itemEquipLoc == "INVTYPE_HAND" then inventorySlotId = 10
+    elseif itemEquipLoc == "INVTYPE_FINGER" then inventorySlotId = 11
+    elseif itemEquipLoc == "INVTYPE_TRINKET" then inventorySlotId = 13
+    elseif itemEquipLoc == "INVTYPE_CLOAK" then inventorySlotId = 15
+    elseif itemEquipLoc == "INVTYPE_WEAPON" or itemEquipLoc == "INVTYPE_2HWEAPON" or itemEquipLoc == "INVTYPE_WEAPONMAINHAND" then inventorySlotId = 16
+    elseif itemEquipLoc == "INVTYPE_SHIELD" or itemEquipLoc == "INVTYPE_WEAPONOFFHAND" or itemEquipLoc == "INVTYPE_HOLDABLE" then inventorySlotId = 17
+    end
+    
+    if not inventorySlotId then return false end
+
+    local detailedILvl = C_Item.GetDetailedItemLevelInfo(link)
+    if not detailedILvl then return false end
+
+    local function getSlotILvl(slot)
+        local l = GetInventoryItemLink("player", slot)
+        if not l then return 0 end
+        return C_Item.GetDetailedItemLevelInfo(l) or 0
+    end
+
+    local equippedILvl = getSlotILvl(inventorySlotId)
+    if inventorySlotId == 11 then equippedILvl = math.min(equippedILvl, getSlotILvl(12)) end
+    if inventorySlotId == 13 then equippedILvl = math.min(equippedILvl, getSlotILvl(14)) end
+
+    if detailedILvl >= equippedILvl then
+        return true
+    end
+    return false
+end
+
 function Ascension.crafting.updateDestroyQueue()
     if InCombatLockdown() then return end
     
+    if not _G.AscensionProfHelperUI or not _G.AscensionProfHelperUI:IsVisible() then
+        Ascension.crafting.currentTargetItem = nil
+        if _G.AscensionMassDestroyBtn then
+            _G.AscensionMassDestroyBtn:SetAttribute("macrotext", "")
+            _G.AscensionMassDestroyBtn:Hide()
+        end
+        if _G.AscensionMassDestroyOverlayBtn then
+            _G.AscensionMassDestroyOverlayBtn:Hide()
+        end
+        return
+    end
+
     local activeTab = 1
     if _G.AscensionProfHelperUI and _G.AscensionProfHelperUI.tabbedUI then
         activeTab = _G.AscensionProfHelperUI.tabbedUI:getActiveTab()
@@ -150,6 +241,7 @@ function Ascension.crafting.updateDestroyQueue()
         massDestroyButton:SetAttribute("macrotext1-down", "")
         massDestroyButton:SetAttribute("*macrotext1-down", "")
         massDestroyButton:Hide()
+        if _G.AscensionMassDestroyOverlayBtn then _G.AscensionMassDestroyOverlayBtn:Hide() end
         return
     end
 
@@ -171,7 +263,10 @@ function Ascension.crafting.updateDestroyQueue()
                         end
                         foundItems[link].count = foundItems[link].count + 1
                         
-                        if not targetBag then
+                        local isDangerous = Ascension.crafting.isItemDangerous(link, itemInfo.itemID)
+                        foundItems[link].isDangerous = isDangerous
+                        
+                        if not targetBag and (not isDangerous or Ascension.crafting.allowedDangerousItems[itemInfo.itemID]) then
                             targetBag = bagIndex
                             targetSlot = slotIndex
                             targetSpell = spellName
@@ -215,9 +310,30 @@ function Ascension.crafting.updateDestroyQueue()
                 
                 text:SetPoint("RIGHT", ilvlText, "LEFT", -10, 0)
 
-                f:RegisterForClicks("RightButtonUp")
+                f:RegisterForClicks("LeftButtonUp", "RightButtonUp")
                 f:SetScript("OnClick", function(self, button)
-                    if button == "RightButton" then
+                    if self.isDangerous and not Ascension.crafting.allowedDangerousItems[self.itemId] then
+                        StaticPopupDialogs["ASCENSION_HANDLE_DANGEROUS"] = {
+                            text = "This item might be an upgrade. Do you want to delete it or blacklist it?",
+                            button1 = "Delete",
+                            button2 = "Blacklist",
+                            button3 = "Cancel",
+                            OnAccept = function()
+                                Ascension.crafting.allowedDangerousItems[self.itemId] = true
+                                Ascension.crafting.updateDestroyQueue()
+                            end,
+                            OnCancel = function(popup, data, reason)
+                                if reason == "clicked" then
+                                    AscensionDB.blacklist[self.itemId] = true
+                                    Ascension.crafting.updateDestroyQueue()
+                                end
+                            end,
+                            timeout = 0,
+                            whileDead = true,
+                            hideOnEscape = true,
+                        }
+                        StaticPopup_Show("ASCENSION_HANDLE_DANGEROUS")
+                    elseif button == "RightButton" then
                         local lib = LibStub("AscensionSuit-UI", true)
                         if lib and lib.UX and lib.UX.showContextMenu then
                             lib.UX:showContextMenu(self, {
@@ -238,6 +354,12 @@ function Ascension.crafting.updateDestroyQueue()
             
             f:SetParent(activePanel)
             f.itemId = id
+            f.isDangerous = data.isDangerous
+            if f.isDangerous and not Ascension.crafting.allowedDangerousItems[id] then
+                f:SetBackdropBorderColor(1, 0, 0, 1)
+            else
+                f:SetBackdropBorderColor(0, 0, 0, 0)
+            end
             local detailedILvl = C_Item.GetDetailedItemLevelInfo(link)
             local icon = C_Item.GetItemIconByID(id)
             local iconStr = icon and ("|T" .. icon .. ":30:30|t ") or ""
@@ -283,7 +405,13 @@ function Ascension.crafting.updateDestroyQueue()
         massDestroyButton:SetAttribute("macrotext1-down", text)
         massDestroyButton:SetAttribute("*macrotext1-down", text)
         
-        massDestroyButton:Show()
+        if not Ascension.crafting.sessionConfirmed then
+            massDestroyButton:Hide()
+            if _G.AscensionMassDestroyOverlayBtn then _G.AscensionMassDestroyOverlayBtn:Show() end
+        else
+            if _G.AscensionMassDestroyOverlayBtn then _G.AscensionMassDestroyOverlayBtn:Hide() end
+            massDestroyButton:Show()
+        end
     else
         Ascension.crafting.currentTargetItem = nil
         massDestroyButton:SetAttribute("macrotext", "")
@@ -293,6 +421,7 @@ function Ascension.crafting.updateDestroyQueue()
         massDestroyButton:SetAttribute("macrotext1-down", "")
         massDestroyButton:SetAttribute("*macrotext1-down", "")
         massDestroyButton:Hide()
+        if _G.AscensionMassDestroyOverlayBtn then _G.AscensionMassDestroyOverlayBtn:Hide() end
     end
 end
 
@@ -418,11 +547,10 @@ local function createUI()
                         local bindStr = (AscensionDB.macroMod or "SHIFT") .. "-" .. (AscensionDB.macroDir or "MOUSEWHEELUP")
                         local bindingMode = (GetCurrentBindingSet() == 2) and 1 or 2
                         
-                        SetBinding(bindStr, nil, bindingMode)
-                        SetBindingClick(bindStr, "AscensionMassDestroyBtn", "LeftButton")
-                        SaveBindings(GetCurrentBindingSet())
-                        
                         AscensionDB.lastBind = bindStr
+                        if _G.AscensionProfHelperUI then
+                            SetOverrideBindingClick(_G.AscensionProfHelperUI, true, bindStr, "AscensionMassDestroyBtn", "LeftButton")
+                        end
                         Ascension.log("Bound " .. bindStr .. " directly to Destroy Button!")
                     end
                 end
@@ -438,8 +566,9 @@ local function createUI()
                 onClick = function()
                     if not InCombatLockdown() then
                         if AscensionDB.lastBind then
-                            SetBinding(AscensionDB.lastBind, nil)
-                            SaveBindings(GetCurrentBindingSet())
+                            if _G.AscensionProfHelperUI then
+                                ClearOverrideBindings(_G.AscensionProfHelperUI)
+                            end
                             Ascension.log("Removed bind: " .. AscensionDB.lastBind)
                             AscensionDB.lastBind = nil
                         end
@@ -474,8 +603,10 @@ local function createUI()
                 if i == 4 then
                     Ascension.crafting.updateBlacklistUI()
                     if _G.AscensionMassDestroyBtn then _G.AscensionMassDestroyBtn:Hide() end
+                    if _G.AscensionMassDestroyOverlayBtn then _G.AscensionMassDestroyOverlayBtn:Hide() end
                 elseif i == 5 then
                     if _G.AscensionMassDestroyBtn then _G.AscensionMassDestroyBtn:Hide() end
+                    if _G.AscensionMassDestroyOverlayBtn then _G.AscensionMassDestroyOverlayBtn:Hide() end
                 else
                     Ascension.crafting.updateDestroyQueue()
                 end
@@ -511,12 +642,46 @@ local function createUI()
     massDestroyButton:SetScript("OnMouseDown", function(self) btnText:SetPoint("CENTER", 1, -1) end)
     massDestroyButton:SetScript("OnMouseUp", function(self) btnText:SetPoint("CENTER", 0, 0) end)
 
+    if _G.AscensionMassDestroyOverlayBtn then
+        _G.AscensionMassDestroyOverlayBtn:SetBackdrop({
+            bgFile = styles.files.bgFile,
+            edgeFile = styles.files.edgeFile,
+            edgeSize = 1,
+            insets = { left = 1, right = 1, top = 1, bottom = 1 }
+        })
+        _G.AscensionMassDestroyOverlayBtn:SetBackdropColor(unpack(styles.colors.surfaceLight or {0.2, 0.2, 0.2, 1}))
+        _G.AscensionMassDestroyOverlayBtn:SetBackdropBorderColor(unpack(styles.colors.blackDetail or {0, 0, 0, 1}))
+        local overlayText = _G.AscensionMassDestroyOverlayBtn:CreateFontString(nil, "OVERLAY", styles.fonts.label or "GameFontNormal")
+        overlayText:SetPoint("CENTER", 0, 0)
+        overlayText:SetText("Start Destroy")
+        overlayText:SetTextColor(unpack(styles.colors.textLight or {1, 1, 1, 1}))
+        _G.AscensionMassDestroyOverlayBtn:SetFontString(overlayText)
+        _G.AscensionMassDestroyOverlayBtn:SetScript("OnEnter", massDestroyButton:GetScript("OnEnter"))
+        _G.AscensionMassDestroyOverlayBtn:SetScript("OnLeave", massDestroyButton:GetScript("OnLeave"))
+        _G.AscensionMassDestroyOverlayBtn:SetScript("OnMouseDown", function(self) overlayText:SetPoint("CENTER", 1, -1) end)
+        _G.AscensionMassDestroyOverlayBtn:SetScript("OnMouseUp", function(self) overlayText:SetPoint("CENTER", 0, 0) end)
+    end
+
+
+
     -- Anchor secure button to main frame (centered in the right panel)
     massDestroyButton:SetParent(mainFrame)
     massDestroyButton:SetPoint("BOTTOM", mainFrame, "BOTTOMLEFT", 300, 20)
+    
+    if _G.AscensionMassDestroyOverlayBtn then
+        _G.AscensionMassDestroyOverlayBtn:SetParent(mainFrame)
+        _G.AscensionMassDestroyOverlayBtn:SetPoint("BOTTOM", mainFrame, "BOTTOMLEFT", 300, 20)
+    end
 
     mainFrame:HookScript("OnShow", function()
+        Ascension.crafting.sessionConfirmed = false
+        if AscensionDB.lastBind then
+            SetOverrideBindingClick(mainFrame, true, AscensionDB.lastBind, "AscensionMassDestroyOverlayBtn", "LeftButton")
+        end
         Ascension.crafting.updateDestroyQueue()
+    end)
+    mainFrame:HookScript("OnHide", function()
+        ClearOverrideBindings(mainFrame)
     end)
 
     _G.SLASH_ASCENSIONPROF1 = "/aph"
@@ -532,5 +697,6 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         AscensionDB.blacklist = AscensionDB.blacklist or {}
     elseif event == "PLAYER_LOGIN" then
         createUI()
+        
     end
 end)

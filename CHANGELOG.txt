@@ -1,6 +1,11 @@
 <h1>@project-version@</h1>
 <ul>
-    <li>Initial Release of Ascension Profession Helper.</li>
+    <li><b>Backpack Blacklisting:</b> You can now hold ALT and Right-Click items directly in your bags to open a context menu and add them to your blacklist.</li>
+    <li><b>Modifier Choice:</b> Choose modifier key for blacklisting in options.</li>
+    <li><b>Safety Limits:</b> Destroy blocked when addon frame closed. Warning dialog shows before destroying items.</li>
+    <li><b>Smart Highlighting:</b> Red border on items with higher item level than equipped, or usable current items.</li>
+    <li><b>Smart Blacklisting:</b> Option to blacklist when attempting to delete from bag. Removed from blacklist after deletion.</li>
+    <li><b>UI Improvements:</b> Destroy button uses Ascension Suite style, visible in Blacklist and Options tabs.</li>
 </ul>
 <br>
 <h2>Positive feedback is always appreciated, it helps me to continue working on this project</h2>

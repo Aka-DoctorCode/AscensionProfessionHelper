@@ -8,8 +8,11 @@
 
 * **Mass Destroy:** Safely destroys items with a single mouse wheel binding instead of clicking endlessly.
 * **Automatic Detection:** Scans your bags and creates a sorted queue for Disenchanting, Milling, and Prospecting.
-* **Blacklist:** Easily ignore specific items so they are never accidentally destroyed.
-* **Modern UI:** Built on top of the AscensionSuit UI framework for a sleek and consistent look.
+* **Blacklist:** Easily ignore specific items so they are never accidentally destroyed. Hold modifier key (configurable in options) and right-click items in bags to blacklist.
+* **Safety Blocks:** Destruction only allowed when addon frame is open. Displays warning dialog before destroying.
+* **Visual Alerts:** Red border on items with higher item level than equipped, or usable current items.
+* **Smart Blacklisting:** Prompt to blacklist when deleting from bag, and remove from blacklist once deleted.
+* **Modern UI:** Built on top of the AscensionSuit UI framework with Ascension Suite styled buttons visible in Blacklist and Options tabs.
 
 ### **How to Use & Open Frame**
 
@@ -24,8 +27,11 @@
 
 * **Destrucción Masiva:** destruye objetos de forma segura con un simple movimiento de la rueda del ratón.
 * **Detección Automática:** escanea tus bolsas y crea una cola ordenada para Desencantar, Moler y Prospectar.
-* **Lista Negra:** ignora fácilmente objetos específicos para que nunca se destruyan accidentalmente.
-* **Interfaz Moderna:** construido sobre el framework AscensionSuit UI para un aspecto elegante y consistente.
+* **Lista Negra:** ignora fácilmente objetos específicos para que nunca se destruyan accidentalmente. Mantén presionada la tecla modificadora (configurable en opciones) y haz clic derecho en las bolsas para agregar a lista negra.
+* **Bloqueos de Seguridad:** destrucción solo permitida cuando la ventana del addon está abierta. Muestra un diálogo de advertencia antes de destruir.
+* **Alertas Visuales:** borde rojo en objetos con nivel de objeto superior al equipado, o objetos útiles actuales.
+* **Lista Negra Inteligente:** opción para agregar a lista negra al borrar de la bolsa, y se elimina automáticamente después de borrar.
+* **Interfaz Moderna:** construido sobre el framework AscensionSuit UI con botones al estilo Ascension Suite visibles en las pestañas de Lista Negra y Opciones.
 
 ### **Cómo usar y abrir la interfaz**
 
