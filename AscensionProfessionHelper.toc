@@ -3,7 +3,7 @@
 ## Notes: Streamlines mass Disenchanting, Milling, and Prospecting with a safe queue and keybind support.
 ## Author: Aka-DoctorCode
 ## Category: Professions
-## Version: V02
+## Version: @project-version@
 ## SavedVariables: AscensionDB
 ## RequiredDeps: AscensionSuit
 ## IconTexture: Interface\AddOns\AscensionProfessionHelper\Media\AkaDoctorCode.png

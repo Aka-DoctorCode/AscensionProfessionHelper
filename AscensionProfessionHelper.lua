@@ -7,7 +7,7 @@
 
 local addonName, Ascension = ...
 Ascension.crafting = { queue = {}, currentTargetItem = nil, sessionConfirmed = false, allowedDangerousItems = {} }
-Ascension.inventory = {}
+
 Ascension.isDebugEnabled = false
 
 function Ascension.log(message)
@@ -128,25 +128,54 @@ function Ascension.crafting.updateBlacklistUI()
     activePanel:SetHeight(math.abs(y) + 20)
 end
 
-function Ascension.crafting.isItemDestroyable(itemId)
+function Ascension.crafting.isItemDestroyable(bagIndex, slotIndex, itemId)
     if AscensionDB and AscensionDB.blacklist and AscensionDB.blacklist[itemId] then
         return false, nil
     end
 
+    local tooltipData
+    if bagIndex and slotIndex then
+        tooltipData = C_TooltipInfo.GetBagItem(bagIndex, slotIndex)
+    else
+        tooltipData = C_TooltipInfo.GetItemByID(itemId)
+    end
+
     local isNotDisenchantable = false
-    local tooltipData = C_TooltipInfo.GetItemByID(itemId)
+
     if tooltipData then
         for _, line in ipairs(tooltipData.lines) do
-            local text = line.leftText or ""
-            local lowerText = string.lower(text)
+            -- Extract text aggressively to miss nothing (checks leftText, rightText, and hidden args)
+            local fullText = (line.leftText or "") .. " " .. (line.rightText or "")
+            if line.args then
+                for _, arg in ipairs(line.args) do
+                    if arg.stringVal then
+                        fullText = fullText .. arg.stringVal .. " "
+                    end
+                end
+            end
             
-            if string.find(lowerText, "prospectable") or string.find(lowerText, "se puede prospectar") or (ITEM_PROSPECTABLE and string.find(text, ITEM_PROSPECTABLE)) then return true, "Prospecting" end
-            if string.find(lowerText, "millable") or string.find(lowerText, "molible") or string.find(lowerText, "se puede moler") or (ITEM_MILLABLE and string.find(text, ITEM_MILLABLE)) then return true, "Milling" end
+            -- Clean color codes, textures, and line breaks completely
+            local plainText = string.gsub(fullText, "|c%x%x%x%x%x%x%x%x", "")
+            plainText = string.gsub(plainText, "|r", "")
+            plainText = string.gsub(plainText, "|T.-|t", "")
+            plainText = string.gsub(plainText, "\n", "")
             
+            local lowerText = string.lower(plainText)
+            
+            if string.find(lowerText, "prospectable") or string.find(lowerText, "se puede prospectar") or (ITEM_PROSPECTABLE and string.find(plainText, ITEM_PROSPECTABLE, 1, true)) then 
+                return true, "Prospecting" 
+            end
+            
+            if string.find(lowerText, "millable") or string.find(lowerText, "molible") or string.find(lowerText, "se puede moler") or (ITEM_MILLABLE and string.find(plainText, ITEM_MILLABLE, 1, true)) then 
+                return true, "Milling" 
+            end
+            
+            -- Detect if it CANNOT be disenchanted
             if string.find(lowerText, "cannot be disenchanted") or string.find(lowerText, "not disenchantable") or string.find(lowerText, "no se puede desencantar") or string.find(lowerText, "no desencantable") then
                 isNotDisenchantable = true
             end
-            if ITEM_DISENCHANT_NOT_DISENCHANTABLE and string.find(text, ITEM_DISENCHANT_NOT_DISENCHANTABLE) then
+            
+            if ITEM_DISENCHANT_NOT_DISENCHANTABLE and string.find(plainText, ITEM_DISENCHANT_NOT_DISENCHANTABLE, 1, true) then
                 isNotDisenchantable = true
             end
         end
@@ -154,10 +183,36 @@ function Ascension.crafting.isItemDestroyable(itemId)
     
     if isNotDisenchantable then return false, nil end
 
-    local itemQuality = select(3, C_Item.GetItemInfo(itemId))
-    local classId = select(12, C_Item.GetItemInfo(itemId))
-    if (classId == 2 or classId == 4) and itemQuality and itemQuality >= 2 and itemQuality <= 4 then
-        return true, "Disenchant"
+    local _, _, itemQuality, itemLevel, _, _, _, _, equipLoc, _, _, classId, subClassId = C_Item.GetItemInfo(itemId)
+    
+    -- Cache error prevention
+    if not classId or not itemQuality then return false, nil end
+    
+    -- Strict blacklist of equipment locations that the game catalogs as armor/weapon but CANNOT be disenchanted
+    local invalidEquipLocs = {
+        ["INVTYPE_TABARD"]          = true,
+        ["INVTYPE_BODY"]            = true, -- Shirts
+        ["INVTYPE_BAG"]             = true,
+        ["INVTYPE_QUIVER"]          = true,
+        ["INVTYPE_PROFESSION_TOOL"] = true,
+        ["INVTYPE_PROFESSION_GEAR"] = true,
+        [""]                        = true  -- Non-equippable items (Miscellaneous trash that slips through)
+    }
+
+    if invalidEquipLocs[equipLoc] then
+        return false, nil
+    end
+
+    -- Discard cosmetics, fishing poles, and old tools explicitly
+    if classId == 4 and subClassId == 5 then return false, nil end
+    if classId == 2 and subClassId == 20 then return false, nil end
+
+    -- Fallback Disenchant logic: Weapons(2) and Armor(4) from Uncommon(2) to Epic(4)
+    if (classId == 2 or classId == 4) and itemQuality >= 2 and itemQuality <= 4 then
+        -- Items below level 5 cannot be disenchanted
+        if itemLevel and itemLevel > 4 then
+            return true, "Disenchant"
+        end
     end
 
     return false, nil
@@ -253,7 +308,7 @@ function Ascension.crafting.updateDestroyQueue()
         for slotIndex = 1, C_Container.GetContainerNumSlots(bagIndex) do
             local itemInfo = C_Container.GetContainerItemInfo(bagIndex, slotIndex)
             if itemInfo and itemInfo.itemID and not itemInfo.isLocked then
-                local isDestroyable, spellName = Ascension.crafting.isItemDestroyable(itemInfo.itemID)
+                local isDestroyable, spellName = Ascension.crafting.isItemDestroyable(bagIndex, slotIndex, itemInfo.itemID)
                 if isDestroyable and spellName == targetCategory then
                     local link = itemInfo.hyperlink
                     if link then
@@ -380,14 +435,14 @@ function Ascension.crafting.updateDestroyQueue()
         
         local castSpellName = targetSpell
         if targetSpell == "Disenchant" then
-            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(13262)
-            castSpellName = info and info.name or (GetSpellInfo and GetSpellInfo(13262)) or "Disenchant"
+            local spellInfo = C_Spell.GetSpellInfo(13262)
+            castSpellName = spellInfo and spellInfo.name or "Disenchant"
         elseif targetSpell == "Milling" then
-            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(51005)
-            castSpellName = info and info.name or (GetSpellInfo and GetSpellInfo(51005)) or "Milling"
+            local spellInfo = C_Spell.GetSpellInfo(51005)
+            castSpellName = spellInfo and spellInfo.name or "Milling"
         elseif targetSpell == "Prospecting" then
-            local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(31252)
-            castSpellName = info and info.name or (GetSpellInfo and GetSpellInfo(31252)) or "Prospecting"
+            local spellInfo = C_Spell.GetSpellInfo(31252)
+            castSpellName = spellInfo and spellInfo.name or "Prospecting"
         end
         
         massDestroyButton:SetAttribute("type", "macro")
@@ -434,18 +489,44 @@ end)
 
 local errorEventFrame = CreateFrame("Frame")
 errorEventFrame:RegisterEvent("UI_ERROR_MESSAGE")
-errorEventFrame:SetScript("OnEvent", function(self, event, errorType, message)
-    if message == ERR_NOT_DISENCHANTABLE then
-        if Ascension.crafting.currentTargetItem then
-            AscensionDB.blacklist[Ascension.crafting.currentTargetItem] = true
-            Ascension.log("Auto-blacklisted: " .. Ascension.crafting.currentTargetItem)
-            Ascension.crafting.updateDestroyQueue()
-            if UIErrorsFrame then UIErrorsFrame:Clear() end
-        end
+errorEventFrame:SetScript("OnEvent", function(self, event, arg1, arg2)
+    -- Compatibilidad cruzada: En APIs modernas es (errorType, message), en antiguas es (message)
+    local msg = ""
+    if type(arg2) == "string" then
+        msg = arg2
+    elseif type(arg1) == "string" then
+        msg = arg1
+    end
+    
+    local lowerMsg = string.lower(msg)
+    local isDestroyError = false
+    
+    -- 1. Comprobación de variables globales de error del juego
+    if msg == ERR_NOT_DISENCHANTABLE then isDestroyError = true end
+    if msg == (ERR_SPELL_FAILED_SKILL_LINE_NOT_KNOWN or "") then isDestroyError = true end
+    
+    -- 2. Comprobación agresiva de texto (Inglés y Español)
+    if string.find(lowerMsg, "disenchant") or string.find(lowerMsg, "desencantar") then isDestroyError = true end
+    if string.find(lowerMsg, "mill") or string.find(lowerMsg, "moler") then isDestroyError = true end
+    if string.find(lowerMsg, "prospect") or string.find(lowerMsg, "prospectar") then isDestroyError = true end
+    if string.find(lowerMsg, "skill") or string.find(lowerMsg, "habilidad") then isDestroyError = true end
+    if string.find(lowerMsg, "invalid target") or string.find(lowerMsg, "objetivo no válido") then isDestroyError = true end
+
+    -- Si detectamos una falla relacionada con intentar destruir el objeto
+    if isDestroyError and Ascension.crafting.currentTargetItem then
+        -- Lo añadimos a la base de datos de bloqueados
+        AscensionDB.blacklist[Ascension.crafting.currentTargetItem] = true
+        Ascension.log("Auto-bloqueado por rechazo del servidor: " .. msg)
+        
+        -- Actualizamos la cola para que desaparezca visualmente y pase al siguiente
+        Ascension.crafting.updateDestroyQueue()
+        
+        -- Limpiamos el texto rojo de error de la pantalla para que no moleste
+        if UIErrorsFrame then UIErrorsFrame:Clear() end
     end
 end)
 
-local LibStub = _G.LibStub
+
 
 local function createUI()
     local lib = LibStub and LibStub:GetLibrary("AscensionSuit-UI", true)
