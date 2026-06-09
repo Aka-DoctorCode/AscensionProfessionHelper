@@ -59,9 +59,9 @@ function Ascension.crafting.updateBlacklistUI()
     if not activePanel then return end
 
     for _, f in ipairs(blFrames) do f:Hide() end
-    local y = -45
+    local y = -70
     local i = 1
-    for id, _ in pairs(AscensionDB.blacklist or {}) do
+    for id, _ in pairs(AscensionCharDB.blacklist or {}) do
         local name, link = C_Item.GetItemInfo(id)
         local itemName = name or ("Item " .. id)
         
@@ -98,7 +98,7 @@ function Ascension.crafting.updateBlacklistUI()
                                 {
                                     text = "Remove from Blacklist",
                                     func = function()
-                                        AscensionDB.blacklist[f.itemId] = nil
+                                        AscensionCharDB.blacklist[f.itemId] = nil
                                         Ascension.log("Removed from blacklist.")
                                         Ascension.crafting.updateBlacklistUI()
                                         Ascension.crafting.updateDestroyQueue()
@@ -128,8 +128,11 @@ function Ascension.crafting.updateBlacklistUI()
     activePanel:SetHeight(math.abs(y) + 20)
 end
 
-function Ascension.crafting.isItemDestroyable(bagIndex, slotIndex, itemId)
-    if AscensionDB and AscensionDB.blacklist and AscensionDB.blacklist[itemId] then
+function Ascension.crafting.isItemDestroyable(bagIndex, slotIndex, itemId, itemLink)
+    if AscensionCharDB and AscensionCharDB.blacklist and AscensionCharDB.blacklist[itemId] then
+        return false, nil
+    end
+    if Ascension.crafting.sessionBlacklist and Ascension.crafting.sessionBlacklist[itemId] then
         return false, nil
     end
 
@@ -141,6 +144,7 @@ function Ascension.crafting.isItemDestroyable(bagIndex, slotIndex, itemId)
     end
 
     local isNotDisenchantable = false
+    local isRelicByTooltip = false
 
     if tooltipData then
         for _, line in ipairs(tooltipData.lines) do
@@ -163,30 +167,36 @@ function Ascension.crafting.isItemDestroyable(bagIndex, slotIndex, itemId)
             local lowerText = string.lower(plainText)
             
             if string.find(lowerText, "prospectable") or string.find(lowerText, "se puede prospectar") or (ITEM_PROSPECTABLE and string.find(plainText, ITEM_PROSPECTABLE, 1, true)) then 
-                return true, "Prospecting" 
+                if  C_SpellBook.IsSpellInSpellBook(31252) or  C_SpellBook.IsSpellInSpellBook(78670) or  C_SpellBook.IsSpellInSpellBook(132623) then return true, "Prospecting" end
             end
             
             if string.find(lowerText, "millable") or string.find(lowerText, "molible") or string.find(lowerText, "se puede moler") or (ITEM_MILLABLE and string.find(plainText, ITEM_MILLABLE, 1, true)) then 
-                return true, "Milling" 
+                if  C_SpellBook.IsSpellInSpellBook(51005) or  C_SpellBook.IsSpellInSpellBook(2108) then return true, "Milling" end
             end
             
             -- Detect if it CANNOT be disenchanted
             if string.find(lowerText, "cannot be disenchanted") or string.find(lowerText, "not disenchantable") or string.find(lowerText, "no se puede desencantar") or string.find(lowerText, "no desencantable") then
                 isNotDisenchantable = true
             end
-            
             if ITEM_DISENCHANT_NOT_DISENCHANTABLE and string.find(plainText, ITEM_DISENCHANT_NOT_DISENCHANTABLE, 1, true) then
                 isNotDisenchantable = true
+            end
+            
+            -- Fallback for Relics
+            if string.find(lowerText, "artifact relic") or string.find(lowerText, "reliquia artefacto") or string.find(lowerText, "reliquia de artefacto") then
+                isRelicByTooltip = true
             end
         end
     end
     
-    if isNotDisenchantable then return false, nil end
-
-    local _, _, itemQuality, itemLevel, _, _, _, _, equipLoc, _, _, classId, subClassId = C_Item.GetItemInfo(itemId)
+    local _, _, itemQuality, itemLevel, _, _, _, _, equipLoc, _, _, classId, subClassId = C_Item.GetItemInfo(itemLink or itemId)
+    
+    local isRelic = (classId == 3 and subClassId == 11) or isRelicByTooltip
     
     -- Cache error prevention
-    if not classId or not itemQuality then return false, nil end
+    if not isRelic and (not classId or not itemQuality) then return false, nil end
+
+    if isNotDisenchantable and not isRelic then return false, nil end
     
     -- Strict blacklist of equipment locations that the game catalogs as armor/weapon but CANNOT be disenchanted
     local invalidEquipLocs = {
@@ -200,22 +210,36 @@ function Ascension.crafting.isItemDestroyable(bagIndex, slotIndex, itemId)
     }
 
     if invalidEquipLocs[equipLoc] then
-        return false, nil
+        if not (classId == 3 and subClassId == 11) then
+            return false, nil
+        end
     end
 
     -- Discard cosmetics, fishing poles, and old tools explicitly
     if classId == 4 and subClassId == 5 then return false, nil end
     if classId == 2 and subClassId == 20 then return false, nil end
 
-    -- Fallback Disenchant logic: Weapons(2) and Armor(4) from Uncommon(2) to Epic(4)
-    if (classId == 2 or classId == 4) and itemQuality >= 2 and itemQuality <= 4 then
-        -- Items below level 5 cannot be disenchanted
-        if itemLevel and itemLevel > 4 then
-            return true, "Disenchant"
+    -- Fallback Disenchant logic: Weapons(2), Armor(4), and Artifact Relics (3,11)
+    local maxQual = AscensionDB.deMaxQuality or 4
+    local isWeaponOrArmor = (classId == 2 or classId == 4)
+    
+    if isRelic then
+        return true, "Disenchant", true
+    end
+    
+    local sellPrice = select(11, C_Item.GetItemInfo(itemLink or itemId))
+    
+    if (isWeaponOrArmor and itemQuality >= 2 and itemQuality <= maxQual) then
+        -- Starter/Booster weapons that cannot be destroyed usually have 0 sell price
+        if sellPrice == 0 then
+            return false, nil
+        end
+        if (itemLevel and itemLevel > 4) then
+            return true, "Disenchant", false
         end
     end
 
-    return false, nil
+    return false, nil, false
 end
 
 function Ascension.crafting.isItemDangerous(link, itemId)
@@ -261,23 +285,17 @@ function Ascension.crafting.isItemDangerous(link, itemId)
 end
 
 function Ascension.crafting.updateDestroyQueue()
-    if InCombatLockdown() then return end
-    
-    if not _G.AscensionProfHelperUI or not _G.AscensionProfHelperUI:IsVisible() then
-        Ascension.crafting.currentTargetItem = nil
-        if _G.AscensionMassDestroyBtn then
-            _G.AscensionMassDestroyBtn:SetAttribute("macrotext", "")
-            _G.AscensionMassDestroyBtn:Hide()
-        end
-        if _G.AscensionMassDestroyOverlayBtn then
-            _G.AscensionMassDestroyOverlayBtn:Hide()
-        end
-        return
+    if InCombatLockdown() then 
+        return 
     end
+    
+    local mainUI = _G.AscensionProfHelperUI
+    local isShown = true
+
 
     local activeTab = 1
     if _G.AscensionProfHelperUI and _G.AscensionProfHelperUI.tabbedUI then
-        activeTab = _G.AscensionProfHelperUI.tabbedUI:getActiveTab()
+        activeTab = _G.AscensionProfHelperUI.tabbedUI:getActiveTab() or 1
     end
 
     local tabCategoryMap = {
@@ -287,6 +305,7 @@ function Ascension.crafting.updateDestroyQueue()
     }
     
     local targetCategory = tabCategoryMap[activeTab]
+    
     if not targetCategory then
         Ascension.crafting.currentTargetItem = nil
         massDestroyButton:SetAttribute("macrotext", "")
@@ -303,25 +322,53 @@ function Ascension.crafting.updateDestroyQueue()
     local foundItems = {}
     local orderedLinks = {}
     local targetBag, targetSlot, targetSpell, targetItem = nil, nil, nil, nil
+    local partialStacks = {}
+    local pendingCombines = {}
     
-    for bagIndex = 0, 4 do
+    for bagIndex = 0, 5 do
         for slotIndex = 1, C_Container.GetContainerNumSlots(bagIndex) do
             local itemInfo = C_Container.GetContainerItemInfo(bagIndex, slotIndex)
+            local itemLink = itemInfo and (itemInfo.hyperlink or C_Container.GetContainerItemLink(bagIndex, slotIndex))
+            
             if itemInfo and itemInfo.itemID and not itemInfo.isLocked then
-                local isDestroyable, spellName = Ascension.crafting.isItemDestroyable(bagIndex, slotIndex, itemInfo.itemID)
-                if isDestroyable and spellName == targetCategory then
-                    local link = itemInfo.hyperlink
-                    if link then
-                        if not foundItems[link] then
-                            foundItems[link] = { count = 0, itemId = itemInfo.itemID }
-                            table.insert(orderedLinks, link)
+                local isDestroyable, spellName, isConfirmedRelic = Ascension.crafting.isItemDestroyable(bagIndex, slotIndex, itemInfo.itemID, itemLink)
+                
+                local skipItem = false
+                if AscensionDB.includeSoulbound == false and itemInfo.isBound then
+                    if not isConfirmedRelic then
+                        skipItem = true
+                    end
+                end
+
+                if not skipItem and isDestroyable and spellName == targetCategory then
+                    if itemLink then
+                        if not foundItems[itemLink] then
+                            foundItems[itemLink] = { count = 0, itemId = itemInfo.itemID }
+                            table.insert(orderedLinks, itemLink)
+                            Ascension.crafting.lastDebugAddedItem = itemLink
                         end
-                        foundItems[link].count = foundItems[link].count + 1
+                        foundItems[itemLink].count = foundItems[itemLink].count + itemInfo.stackCount
                         
-                        local isDangerous = Ascension.crafting.isItemDangerous(link, itemInfo.itemID)
-                        foundItems[link].isDangerous = isDangerous
+                        local isDangerous = Ascension.crafting.isItemDangerous(itemLink, itemInfo.itemID)
+                        foundItems[itemLink].isDangerous = isDangerous
                         
-                        if not targetBag and (not isDangerous or Ascension.crafting.allowedDangerousItems[itemInfo.itemID]) then
+                        local minQty = (spellName == "Milling" or spellName == "Prospecting") and 5 or 1
+                        
+                        if minQty > 1 and itemInfo.stackCount % minQty ~= 0 then
+                            if partialStacks[itemInfo.itemID] then
+                                table.insert(pendingCombines, {
+                                    sBag = partialStacks[itemInfo.itemID].bag,
+                                    sSlot = partialStacks[itemInfo.itemID].slot,
+                                    tBag = bagIndex,
+                                    tSlot = slotIndex
+                                })
+                                partialStacks[itemInfo.itemID] = nil
+                            else
+                                partialStacks[itemInfo.itemID] = { bag = bagIndex, slot = slotIndex }
+                            end
+                        end
+
+                        if not targetBag and (not isDangerous or Ascension.crafting.allowedDangerousItems[itemInfo.itemID]) and itemInfo.stackCount >= minQty then
                             targetBag = bagIndex
                             targetSlot = slotIndex
                             targetSpell = spellName
@@ -331,6 +378,13 @@ function Ascension.crafting.updateDestroyQueue()
                 end
             end
         end
+    end
+
+    if #pendingCombines > 0 and not CursorHasItem() and not InCombatLockdown() then
+        local c = pendingCombines[1]
+        C_Container.PickupContainerItem(c.sBag, c.sSlot)
+        C_Container.PickupContainerItem(c.tBag, c.tSlot)
+        ClearCursor()
     end
     
     local activePanel = categoryPanels[activeTab]
@@ -379,8 +433,9 @@ function Ascension.crafting.updateDestroyQueue()
                             end,
                             OnCancel = function(popup, data, reason)
                                 if reason == "clicked" then
-                                    AscensionDB.blacklist[self.itemId] = true
+                                    AscensionCharDB.blacklist[self.itemId] = true
                                     Ascension.crafting.updateDestroyQueue()
+                                    Ascension.crafting.updateBlacklistUI()
                                 end
                             end,
                             timeout = 0,
@@ -395,8 +450,18 @@ function Ascension.crafting.updateDestroyQueue()
                                 {
                                     text = "Blacklist Item",
                                     func = function()
-                                        AscensionDB.blacklist[f.itemId] = true
+                                        AscensionCharDB.blacklist[f.itemId] = true
                                         Ascension.log("Blacklisted item " .. f.itemId)
+                                        Ascension.crafting.updateDestroyQueue()
+                                        Ascension.crafting.updateBlacklistUI()
+                                    end
+                                },
+                                {
+                                    text = "Ignore for Session",
+                                    func = function()
+                                        Ascension.crafting.sessionBlacklist = Ascension.crafting.sessionBlacklist or {}
+                                        Ascension.crafting.sessionBlacklist[f.itemId] = true
+                                        Ascension.log("Ignored item " .. f.itemId .. " for session")
                                         Ascension.crafting.updateDestroyQueue()
                                     end
                                 }
@@ -511,15 +576,22 @@ errorEventFrame:SetScript("OnEvent", function(self, event, arg1, arg2)
     if string.find(lowerMsg, "prospect") or string.find(lowerMsg, "prospectar") then isDestroyError = true end
     if string.find(lowerMsg, "skill") or string.find(lowerMsg, "habilidad") then isDestroyError = true end
     if string.find(lowerMsg, "invalid target") or string.find(lowerMsg, "objetivo no válido") then isDestroyError = true end
+    
+    -- 3. Catch modern WoW specific disenchant failures
+    if string.find(lowerMsg, "cannot be") or string.find(lowerMsg, "no se puede") then isDestroyError = true end
 
     -- Si detectamos una falla relacionada con intentar destruir el objeto
     if isDestroyError and Ascension.crafting.currentTargetItem then
         -- Lo añadimos a la base de datos de bloqueados
-        AscensionDB.blacklist[Ascension.crafting.currentTargetItem] = true
+        AscensionCharDB.blacklist[Ascension.crafting.currentTargetItem] = true
         Ascension.log("Auto-bloqueado por rechazo del servidor: " .. msg)
+        
+        -- Movemos el current target a nil para forzar el recálculo y no quedarnos atrapados
+        Ascension.crafting.currentTargetItem = nil
         
         -- Actualizamos la cola para que desaparezca visualmente y pase al siguiente
         Ascension.crafting.updateDestroyQueue()
+        Ascension.crafting.updateBlacklistUI()
         
         -- Limpiamos el texto rojo de error de la pantalla para que no moleste
         if UIErrorsFrame then UIErrorsFrame:Clear() end
@@ -543,7 +615,7 @@ local function createUI()
             
             local searchBox = CreateFrame("EditBox", nil, panel.content, "InputBoxTemplate")
             searchBox:SetSize(200, 30)
-            searchBox:SetPoint("TOPLEFT", 10, -10)
+            searchBox:SetPoint("TOPLEFT", 10, -30)
             searchBox:SetAutoFocus(false)
             searchBox:SetScript("OnTextChanged", function(self)
                 searchFilter = self:GetText()
@@ -658,6 +730,36 @@ local function createUI()
             })
             unbindBtn:ClearAllPoints()
             unbindBtn:SetPoint("TOPLEFT", bindBtn, "BOTTOMLEFT", 0, -10)
+            
+            local title2 = panel.content:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+            title2:SetPoint("TOPLEFT", unbindBtn, "BOTTOMLEFT", 0, -20)
+            title2:SetText("Destroy Settings")
+
+            local maxQualDrop = ctx:createDropdown({
+                parent = panel.content,
+                text = "Max Disenchant Quality",
+                options = {
+                    { label = "Uncommon", value = 2 },
+                    { label = "Rare", value = 3 },
+                    { label = "Epic", value = 4 },
+                },
+                getter = function() return AscensionDB.deMaxQuality or 4 end,
+                setter = function(val) AscensionDB.deMaxQuality = val; Ascension.crafting.updateDestroyQueue() end,
+                width = 220
+            })
+            maxQualDrop:ClearAllPoints()
+            maxQualDrop:SetPoint("TOPLEFT", title2, "BOTTOMLEFT", 10, -15)
+
+            local includeSoulboundCb = CreateFrame("CheckButton", nil, panel.content, "UICheckButtonTemplate")
+            includeSoulboundCb:SetPoint("TOPLEFT", maxQualDrop, "BOTTOMLEFT", -5, -10)
+            includeSoulboundCb.text = includeSoulboundCb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            includeSoulboundCb.text:SetPoint("LEFT", includeSoulboundCb, "RIGHT", 0, 1)
+            includeSoulboundCb.text:SetText("Include Soulbound Items")
+            includeSoulboundCb:SetChecked(AscensionDB.includeSoulbound)
+            includeSoulboundCb:SetScript("OnClick", function(self)
+                AscensionDB.includeSoulbound = self:GetChecked()
+                Ascension.crafting.updateDestroyQueue()
+            end)
         end
     }
 
@@ -765,8 +867,94 @@ local function createUI()
         ClearOverrideBindings(mainFrame)
     end)
 
-    _G.SLASH_ASCENSIONPROF1 = "/aph"
-    _G.SlashCmdList["ASCENSIONPROF"] = function() mainFrame:Show() end
+    _G.SLASH_ASCENSIONPROFHELPER1 = "/aph"
+    _G.SlashCmdList["ASCENSIONPROFHELPER"] = function() mainFrame:Show() end
+
+    _G.SLASH_APHDEBUG1 = "/aphdebug"
+    _G.SlashCmdList["APHDEBUG"] = function(msg)
+        local itemName, itemLink = GameTooltip:GetItem()
+        if not itemLink then
+            print("APH Debug: Hover over an item and type /aphdebug")
+            return
+        end
+        local itemId = select(1, C_Item.GetItemInfoInstant(itemLink))
+        local _, _, q, L, _, _, _, _, E, _, _, c, s = C_Item.GetItemInfo(itemLink)
+        print("APH Debug:", itemLink)
+        print("Class:", c, "SubClass:", s, "EquipLoc:", E, "Quality:", q, "iLvl:", L)
+        
+        local isDestroyable, spellName = Ascension.crafting.isItemDestroyable(nil, nil, itemId, itemLink)
+        print("isDestroyable returns:", isDestroyable, "spell:", spellName)
+        
+        -- Check skipItem logic
+        local skipItem = false
+        local isBound = true -- assume bound for test
+        if AscensionDB.includeSoulbound == false and isBound then
+            if not (c == 3 and s == 11) then
+                skipItem = true
+            end
+        end
+        print("skipItem would be:", skipItem)
+    end
+
+    _G.SLASH_APHDEBUGSCAN1 = "/aphdebugscan"
+    _G.SlashCmdList["APHDEBUGSCAN"] = function()
+        print("APH Debug Scan: Scanning bags 0-5...")
+        local totalDestroyable = 0
+        for bagIndex = 0, 5 do
+            for slotIndex = 1, C_Container.GetContainerNumSlots(bagIndex) do
+                local itemInfo = C_Container.GetContainerItemInfo(bagIndex, slotIndex)
+                if itemInfo and itemInfo.itemID then
+                    local itemLink = itemInfo.hyperlink or C_Container.GetContainerItemLink(bagIndex, slotIndex)
+                    local isDestroyable, spellName, isRelic = Ascension.crafting.isItemDestroyable(bagIndex, slotIndex, itemInfo.itemID, itemLink)
+                    if isDestroyable then
+                        totalDestroyable = totalDestroyable + 1
+                        print("Found:", itemLink, "Locked:", tostring(itemInfo.isLocked), "Relic:", tostring(isRelic))
+                        
+                        -- DUMP TOOLTIP FOR WEAPONS TO FIND MISSING TEXT
+                        if not isRelic then
+                            local tooltipData = C_TooltipInfo.GetBagItem(bagIndex, slotIndex)
+                            if tooltipData then
+                                print("  [Tooltip Dump for " .. itemLink .. "]:")
+                                for _, line in ipairs(tooltipData.lines) do
+                                    local fullText = (line.leftText or "") .. " " .. (line.rightText or "")
+                                    if line.args then
+                                        for _, arg in ipairs(line.args) do
+                                            if arg.stringVal then fullText = fullText .. arg.stringVal .. " " end
+                                        end
+                                    end
+                                    local plainText = string.gsub(fullText, "|c%x%x%x%x%x%x%x%x", "")
+                                    plainText = string.gsub(plainText, "|r", "")
+                                    plainText = string.gsub(plainText, "|T.-|t", "")
+                                    plainText = string.gsub(plainText, "\n", "")
+                                    if plainText ~= "" and plainText ~= " " then
+                                        print("    - " .. plainText)
+                                    end
+                                end
+                            end
+                        end
+                        -- END DUMP
+                    end
+                end
+            end
+        end
+        print("Total destroyable items found:", totalDestroyable)
+    end
+
+    _G.SLASH_APHDEBUGBL1 = "/aphdebugbl"
+    _G.SlashCmdList["APHDEBUGBL"] = function()
+        print("APH Debug Blacklist:")
+        local count = 0
+        if AscensionCharDB and AscensionCharDB.blacklist then
+            for id, val in pairs(AscensionCharDB.blacklist) do
+                local name = C_Item.GetItemInfo(id) or ("Unknown Item " .. tostring(id))
+                print("  [" .. tostring(id) .. "] -> " .. name .. " = " .. tostring(val))
+                count = count + 1
+            end
+        else
+            print("  AscensionCharDB.blacklist is nil!")
+        end
+        print("Total items in blacklist:", count)
+    end
 end
 
 local eventFrame = CreateFrame("Frame")
@@ -775,9 +963,21 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == addonName then
         AscensionDB = AscensionDB or {}
-        AscensionDB.blacklist = AscensionDB.blacklist or {}
+        AscensionCharDB = AscensionCharDB or {}
+        
+        if AscensionDB.blacklist then
+            AscensionCharDB.blacklist = AscensionDB.blacklist
+            AscensionDB.blacklist = nil
+        end
+        
+        AscensionCharDB.blacklist = AscensionCharDB.blacklist or {}
+        if AscensionDB.includeSoulbound == nil then AscensionDB.includeSoulbound = true end
+        if AscensionDB.deMaxQuality == nil then AscensionDB.deMaxQuality = 4 end
+        Ascension.crafting.sessionBlacklist = {}
     elseif event == "PLAYER_LOGIN" then
         createUI()
-        
+        if _G.AscensionProfHelperUI then
+            _G.AscensionProfHelperUI:Hide()
+        end
     end
 end)

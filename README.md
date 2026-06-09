@@ -8,9 +8,11 @@
 
 * **Mass Destroy:** Safely destroys items with a single mouse wheel binding instead of clicking endlessly.
 * **Automatic Detection:** Scans your bags and creates a sorted queue for Disenchanting, Milling, and Prospecting.
-* **Aggressive Auto-Blacklist:** Automatically catches server rejections to keep the destroy queue moving without getting stuck.
-* **Smart Filtering:** Accurately ignores non-destroyable items, cosmetics, tabards, bags, and profession tools through deep tooltip scanning.
-* **Blacklist:** Easily ignore specific items so they are never accidentally destroyed. Hold modifier key (configurable in options) and right-click items in bags to blacklist.
+* **Aggressive Auto-Blacklist:** Automatically catches modern server rejections to keep the destroy queue moving without getting stuck.
+* **Smart Filtering:** Accurately ignores non-destroyable items, cosmetics, tabards, bags, profession tools, and invisible booster/starter gear through deep tooltip scanning and metadata checks.
+* **Blacklist & Session Ignore:** Easily ignore specific items so they are never accidentally destroyed. Hold modifier key and right-click items in bags to blacklist, or left-click in the UI context menu to temporarily "Ignore for Session". The Blacklist Tab updates in real-time.
+* **Smart Logic:** Automatically combines partial stacks of herbs and ores, ensures minimum quantity requirements, and checks if you know the appropriate spell before queueing.
+* **Customizable Settings:** Easily configure the maximum disenchantable item quality and toggle soulbound item destruction from the Options panel.
 * **Safety Blocks:** Destruction only allowed when addon frame is open. Displays warning dialog before destroying.
 
 
@@ -27,8 +29,10 @@
 * **Destrucción Masiva:** destruye objetos de forma segura con un simple movimiento de la rueda del ratón.
 * **Detección Automática:** escanea tus bolsas y crea una cola ordenada para Desencantar, Moler y Prospectar.
 * **Lista Negra Automática Agresiva:** captura automáticamente los rechazos del servidor para mantener la cola de destrucción en movimiento sin atascarse.
-* **Filtrado Inteligente:** ignora con precisión objetos no destructibles, cosméticos, tabardos, bolsas y herramientas de profesión mediante un escaneo profundo de la descripción.
-* **Lista Negra:** ignora fácilmente objetos específicos para que nunca se destruyan accidentalmente. Mantén presionada la tecla modificadora (configurable en opciones) y haz clic derecho en las bolsas para agregar a lista negra.
+* **Filtrado Inteligente:** ignora con precisión objetos no destructibles, cosméticos, tabardos, bolsas, herramientas de profesión y equipamiento de inicio invisible mediante escaneo profundo de la descripción y de los metadatos.
+* **Lista Negra e Ignorar por Sesión:** Ignora fácilmente objetos específicos. Mantén presionada la tecla modificadora y haz clic derecho en las bolsas para agregar a la lista negra, o usa el menú para "Ignorar por Sesión" temporalmente. La pestaña de Lista Negra se actualiza en tiempo real.
+* **Lógica Inteligente:** Combina automáticamente pilas incompletas de hierbas y menas, asegura los requisitos de cantidad mínima y verifica si conoces el hechizo apropiado antes de poner los objetos en cola.
+* **Configuración Personalizable:** Configura fácilmente la calidad máxima de desencantamiento y alterna la destrucción de objetos ligados al alma desde el panel de Opciones.
 * **Bloqueos de Seguridad:** destrucción solo permitida cuando la ventana del addon está abierta. Muestra un diálogo de advertencia antes de destruir.
 
 ### **Cómo usar y abrir la interfaz**

@@ -1,9 +1,15 @@
 <h1>@project-version@</h1>
 <ul>
-    <li><b>Aggressive Auto-Blacklisting:</b> Addon now aggressively catches server rejections and instantly blacklists problematic items, preventing queue stalls.</li>
-    <li><b>Enhanced Tooltip Parsing:</b> Deep tooltip scanning successfully captures hidden text, color codes, and texture icons to perfectly identify non-destroyable items.</li>
-    <li><b>Strict Category Filters:</b> Items like Tabards, Shirts, Bags, and Profession equipment are now strictly filtered and ignored during disenchanting.</li>
-    <li><b>Modern API Compatibility:</b> Updated spell casting logic to use the latest `C_Spell` API, ensuring full compatibility with patch 12.0.5.</li>
+    <li><b>Enhanced Error Catching:</b> Broadened auto-blacklist interception to reliably catch modern WoW error messages and prevent queue stalling.</li>
+    <li><b>Starter Gear Filter:</b> Improved filter logic to automatically detect and skip un-disenchantable booster/starter gear that lacks warning text.</li>
+    <li><b>Real-Time UI:</b> The Blacklist Tab now updates instantly without needing to reopen the frame.</li>
+    <li><b>Layout Fixes:</b> Fixed clipping issues in the Blacklist Tab search box.</li>
+    <li><b>Stack Combiner:</b> Automatically merges partial stacks of herbs and ores in your bags before casting to prevent errors.</li>
+    <li><b>Smart Requirements:</b> Added strict checks to ensure minimum quantity requirements (5 for Milling/Prospecting) and verify that you actually know the profession spell before queuing items.</li>
+    <li><b>Session Ignore:</b> Right-click an item in the queue to temporarily ignore it until you log out.</li>
+    <li><b>New Options:</b> Added configuration toggles for "Max Disenchant Quality" and "Include Soulbound Items" directly in the UI.</li>
+    <li><b>Accurate Counters:</b> Item quantities in the queue now reflect the total stack count rather than the number of bag slots.</li>
 </ul>
+<br>
 <br>
 <h2>Positive feedback is always appreciated, it helps me to continue working on this project</h2>

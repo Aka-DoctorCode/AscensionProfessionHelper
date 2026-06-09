@@ -5,6 +5,7 @@
 ## Category: Professions
 ## Version: @project-version@
 ## SavedVariables: AscensionDB
+## SavedVariablesPerCharacter: AscensionCharDB
 ## RequiredDeps: AscensionSuit
 ## IconTexture: Interface\AddOns\AscensionProfessionHelper\Media\AkaDoctorCode.png
 ## X-Curse-Project-ID: 1556632
