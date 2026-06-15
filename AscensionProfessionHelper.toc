@@ -1,4 +1,4 @@
-## Interface: 120005
+## Interface: 120007
 ## Title: Ascension Profession Helper
 ## Notes: Streamlines mass Disenchanting, Milling, and Prospecting with a safe queue and keybind support.
 ## Author: Aka-DoctorCode
