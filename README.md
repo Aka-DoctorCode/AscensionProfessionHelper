@@ -1,3 +1,5 @@
+[![Discord](https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=5865F2)](https://discord.gg/GaYzvYr7F) ![CurseForge Downloads](https://img.shields.io/curseforge/dt/1556632?style=for-the-badge&color=4900C2) ![CurseForge Version](https://img.shields.io/curseforge/v/1556632?style=for-the-badge&color=4900C2) ![CurseForge Game Versions](https://img.shields.io/curseforge/game-versions/1556632?style=for-the-badge&color=4900C2) [![](https://img.shields.io/badge/Donate-F0B90B?style=for-the-badge)](https://aka-doctorcode.github.io/DonationAddresses/)
+
 # **Ascension Profession Helper**
 
 ***
@@ -6,19 +8,15 @@
 
 ## Key Features
 
-* **Mass Destroy:** Safely destroys items with a single mouse wheel binding instead of clicking endlessly.
-* **Automatic Detection:** Scans your bags and creates a sorted queue for Disenchanting, Milling, and Prospecting.
-* **Aggressive Auto-Blacklist:** Automatically catches modern server rejections to keep the destroy queue moving without getting stuck.
-* **Smart Filtering:** Accurately ignores non-destroyable items, cosmetics, tabards, bags, profession tools, and invisible booster/starter gear through deep tooltip scanning and metadata checks.
-* **Blacklist & Session Ignore:** Easily ignore specific items so they are never accidentally destroyed. Hold modifier key and right-click items in bags to blacklist, or left-click in the UI context menu to temporarily "Ignore for Session". The Blacklist Tab updates in real-time.
-* **Smart Logic:** Automatically combines partial stacks of herbs and ores, ensures minimum quantity requirements, and checks if you know the appropriate spell before queueing.
-* **Customizable Settings:** Easily configure the maximum disenchantable item quality and toggle soulbound item destruction from the Options panel.
-* **Safety Blocks:** Destruction only allowed when addon frame is open. Displays warning dialog before destroying.
-
+*   **Mass Destroy:** Safely destroys items with a single mouse wheel binding instead of clicking endlessly.
+*   **Automatic Detection:** Scans your bags and creates a sorted queue for Disenchanting, Milling, and Prospecting.
+*   **Blacklist:** Easily ignore specific items so they are never accidentally destroyed.
+*   **Modern UI:** Built on top of the AscensionSuit UI framework for a sleek and consistent look.
 
 ### **How to Use & Open Frame**
 
-* Type `/aph` in chat to open main frame.
+*   Type `/aph` in chat to open main frame.
+*   Go to game Options -> AddOns -> Ascension Profession Helper for settings.
 
 ***
 
@@ -26,17 +24,14 @@
 
 ### Características Principales
 
-* **Destrucción Masiva:** destruye objetos de forma segura con un simple movimiento de la rueda del ratón.
-* **Detección Automática:** escanea tus bolsas y crea una cola ordenada para Desencantar, Moler y Prospectar.
-* **Lista Negra Automática Agresiva:** captura automáticamente los rechazos del servidor para mantener la cola de destrucción en movimiento sin atascarse.
-* **Filtrado Inteligente:** ignora con precisión objetos no destructibles, cosméticos, tabardos, bolsas, herramientas de profesión y equipamiento de inicio invisible mediante escaneo profundo de la descripción y de los metadatos.
-* **Lista Negra e Ignorar por Sesión:** Ignora fácilmente objetos específicos. Mantén presionada la tecla modificadora y haz clic derecho en las bolsas para agregar a la lista negra, o usa el menú para "Ignorar por Sesión" temporalmente. La pestaña de Lista Negra se actualiza en tiempo real.
-* **Lógica Inteligente:** Combina automáticamente pilas incompletas de hierbas y menas, asegura los requisitos de cantidad mínima y verifica si conoces el hechizo apropiado antes de poner los objetos en cola.
-* **Configuración Personalizable:** Configura fácilmente la calidad máxima de desencantamiento y alterna la destrucción de objetos ligados al alma desde el panel de Opciones.
-* **Bloqueos de Seguridad:** destrucción solo permitida cuando la ventana del addon está abierta. Muestra un diálogo de advertencia antes de destruir.
+*   **Destrucción Masiva:** destruye objetos de forma segura con un simple movimiento de la rueda del ratón.
+*   **Detección Automática:** escanea tus bolsas y crea una cola ordenada para Desencantar, Moler y Prospectar.
+*   **Lista Negra:** ignora fácilmente objetos específicos para que nunca se destruyan accidentalmente.
+*   **Interfaz Moderna:** construido sobre el framework AscensionSuit UI para un aspecto elegante y consistente.
 
 ### **Cómo usar y abrir la interfaz**
 
-* Escribe `/aph` en el chat para abrir la ventana principal.
+*   Escribe `/aph` en el chat para abrir la ventana principal.
+*   Ve a Opciones -> AddOns -> Ascension Profession Helper en el menú del juego.
 
 ***
