@@ -1,7 +1,6 @@
 <h1>@project-version@</h1>
 <ul>
-    <li>License Update</li>
-    <li>Readme Updated</li>
+    <li>12.1 .toc update</li>
 </ul>
 <br>
 <h2>Positive feedback is always appreciated, it helps me to continue working on this project</h2>
